@@ -1,0 +1,85 @@
+#!/bin/sh
+
+set -eu
+
+main() {
+  for archive in "$@"; do
+    if [ ! -f "$archive" ]; then
+      echo "Archive file does not exist: $archive" >&2
+      exit 1
+    fi
+
+    archive_filename=${archive##*/}
+    case ${archive_filename#*.} in
+      tar|tar.bz2|tar.gz)
+        validate_dependency "$archive_filename" tar
+        ;;
+      zip)
+        validate_dependency "$archive_filename" unzip
+        ;;
+      *)
+        echo "Unrecognized archive type: $archive_filename" >&2
+        exit 1
+    esac
+  done
+
+  for archive in "$@"; do
+    archive_filename=${archive##*/}
+    case "${archive_filename#*.}" in
+      tar|tar.bz2|tar.gz)
+        top_level_files="$(tar tf "$archive" | sed 's_/.*__' | sort | uniq)"
+        top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
+        if [ "$top_level_file_count" -eq 1 ]; then
+          destination="$top_level_files"
+          validate_archive_destination "$archive_filename" "$destination"
+          extract_tar "$archive"
+        else
+          destination="${archive_filename%%.*}"
+          validate_archive_destination "$archive_filename" "$destination"
+          mkdir -- "$destination"
+          (cd "$destination" && extract_tar "../$archive")
+        fi
+        echo "Extracted: $destination" >&2
+        ;;
+      zip)
+        top_level_files="$(unzip -Z1 "$archive" | sed 's_/.*__' | sort | uniq)"
+        top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
+        if [ "$top_level_file_count" -eq 1 ]; then
+          destination="$top_level_files"
+          validate_archive_destination "$archive_filename" "$destination"
+          extract_zip "$archive"
+        else
+          destination="${archive_filename%%.*}"
+          validate_archive_destination "$archive_filename" "$destination"
+          mkdir -- "$destination"
+          (cd "$destination" && extract_zip "../$archive")
+        fi
+        echo "Extracted: $destination" >&2
+        ;;
+    esac
+  done
+}
+
+extract_tar() {
+  tar --no-same-owner --extract -f "$1"
+}
+
+extract_zip() {
+  unzip -q -- "$1"
+}
+
+validate_archive_destination() {
+  if [ -e "$2" ]; then
+    printf "Unable to extract: %s\nBecause it would overwrite: %s" "$1" "$2" >&2
+    exit 1
+  fi
+}
+
+validate_dependency() {
+  if ! hash "$2"; then
+    printf "%s not found. Please install it to be able to extract %s" "$2" "$1" >&2
+    exit 1
+  fi
+}
+
+main "$@"
