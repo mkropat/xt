@@ -10,11 +10,11 @@ main() {
     fi
 
     archive_filename=${archive##*/}
-    case ${archive_filename#*.} in
-      tar|tar.bz2|tar.gz)
+    case $archive_filename in
+      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
         validate_dependency "$archive_filename" tar
         ;;
-      zip)
+      *.zip)
         validate_dependency "$archive_filename" unzip
         ;;
       *)
@@ -25,8 +25,8 @@ main() {
 
   for archive in "$@"; do
     archive_filename=${archive##*/}
-    case "${archive_filename#*.}" in
-      tar|tar.bz2|tar.gz)
+    case $archive_filename in
+      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
         top_level_files="$(tar tf "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
@@ -41,7 +41,7 @@ main() {
         fi
         echo "Extracted: $destination" >&2
         ;;
-      zip)
+      *.zip)
         top_level_files="$(unzip -Z1 "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
@@ -76,7 +76,7 @@ validate_archive_destination() {
 }
 
 validate_dependency() {
-  if ! hash "$2"; then
+  if ! command -v "$2" >/dev/null; then
     printf "%s not found. Please install it to be able to extract %s" "$2" "$1" >&2
     exit 1
   fi
