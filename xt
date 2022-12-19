@@ -4,14 +4,23 @@ set -eu
 
 main() {
   if [ $# -eq 0 ]; then
-    echo "Usage: xt ARCHIVE…" >&2
+    echo "Usage: xt ARCHIVE… [DEST]" >&2
     exit
   fi
 
+  dest_dir=
+  dest_index=-1
+  i=0
   for archive in "$@"; do
     if [ ! -f "$archive" ]; then
-      echo "Archive file does not exist: $archive" >&2
-      exit 1
+      if [ "$i" -eq $(($# - 1)) ]; then
+        dest_dir=$(ensure_trailing_slash "$archive")
+        dest_index=$i
+        break
+      else
+        echo "Archive file does not exist: $archive" >&2
+        exit 1
+      fi
     fi
 
     archive_filename=${archive##*/}
@@ -26,23 +35,36 @@ main() {
         echo "Unrecognized archive type: $archive_filename" >&2
         exit 1
     esac
+
+    i=$((i+1))
   done
 
+  i=0
   for archive in "$@"; do
+    if [ $# -eq "$dest_index" ]; then
+      break
+    fi
+
     archive_filename=${archive##*/}
+    archive_path=$(absolute_path "$archive")
     case $archive_filename in
       *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
         top_level_files="$(tar tf "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
-          destination="$top_level_files"
+          destination="$dest_dir$top_level_files"
           validate_archive_destination "$archive_filename" "$destination"
-          extract_tar "$archive"
+          if [ -n "$dest_dir" ]; then
+            mkdir -p -- "$dest_dir"
+            (cd "$dest_dir" && extract_tar "$archive_path")
+          else
+            extract_tar "$archive"
+          fi
         else
-          destination="${archive_filename%%.*}"
+          destination="$dest_dir${archive_filename%%.*}"
           validate_archive_destination "$archive_filename" "$destination"
-          mkdir -- "$destination"
-          (cd "$destination" && extract_tar "../$archive")
+          mkdir -p -- "$destination"
+          (cd "$destination" && extract_tar "$archive_path")
         fi
         echo "Extracted: $destination" >&2
         ;;
@@ -50,19 +72,42 @@ main() {
         top_level_files="$(unzip -Z1 "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
-          destination="$top_level_files"
+          destination="$dest_dir$top_level_files"
           validate_archive_destination "$archive_filename" "$destination"
-          extract_zip "$archive"
+          if [ -n "$dest_dir" ]; then
+            mkdir -p -- "$dest_dir"
+            (cd "$dest_dir" && extract_zip "$archive_path")
+          else
+            extract_zip "$archive"
+          fi
         else
-          destination="${archive_filename%%.*}"
+          destination="$dest_dir${archive_filename%%.*}"
           validate_archive_destination "$archive_filename" "$destination"
-          mkdir -- "$destination"
-          (cd "$destination" && extract_zip "../$archive")
+          mkdir -p -- "$destination"
+          (cd "$destination" && extract_zip "$archive_path")
         fi
         echo "Extracted: $destination" >&2
         ;;
     esac
+
+    i=$((i+1))
   done
+}
+
+absolute_path() {
+  case $1 in
+    /*) printf '%s' "$1" ;;
+    *) printf '%s/%s' "$PWD" "$1"
+  esac
+}
+
+ensure_trailing_slash() {
+  if [ -n "$1" ]; then
+    case $1 in
+      */) printf '%s' "$1" ;;
+      *) printf '%s/' "$1"
+    esac
+  fi
 }
 
 extract_tar() {
