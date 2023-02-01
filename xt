@@ -61,7 +61,7 @@ main() {
             extract_tar "$archive"
           fi
         else
-          destination="$dest_dir${archive_filename%%.*}"
+          destination="$dest_dir$(strip_extension "$archive_filename")"
           validate_archive_destination "$archive_filename" "$destination"
           mkdir -p -- "$destination"
           (cd "$destination" && extract_tar "$archive_path")
@@ -81,7 +81,7 @@ main() {
             extract_zip "$archive"
           fi
         else
-          destination="$dest_dir${archive_filename%%.*}"
+          destination="$dest_dir$(strip_extension "$archive_filename")"
           validate_archive_destination "$archive_filename" "$destination"
           mkdir -p -- "$destination"
           (cd "$destination" && extract_zip "$archive_path")
@@ -116,6 +116,15 @@ extract_tar() {
 
 extract_zip() {
   unzip -q -- "$1"
+}
+
+strip_extension() {
+  case "$1" in
+    *.tar.bz2)  printf '%s' "${1%.tar.bz2}" ;;
+    *.tar.gz)   printf '%s' "${1%.tar.gz}" ;;
+    *.tar.xz)   printf '%s' "${1%.tar.xz}" ;;
+    *)          printf '%s' "${1%.*}" ;;
+  esac
 }
 
 validate_archive_destination() {
