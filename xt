@@ -28,7 +28,7 @@ main() {
       *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
         validate_dependency "$archive_filename" tar
         ;;
-      *.zip)
+      *.jar|*.zip)
         validate_dependency "$archive_filename" unzip
         ;;
       *)
@@ -68,7 +68,7 @@ main() {
         fi
         echo "Extracted: $destination" >&2
         ;;
-      *.zip)
+      *.jar|*.zip)
         top_level_files="$(unzip -Z1 "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
