@@ -41,7 +41,7 @@ main() {
 
   i=0
   for archive in "$@"; do
-    if [ $# -eq "$dest_index" ]; then
+    if [ $i -eq $dest_index ]; then
       break
     fi
 
