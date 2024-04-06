@@ -25,7 +25,7 @@ main() {
 
     archive_filename=${archive##*/}
     case $archive_filename in
-      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
+      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz|*.txz)
         validate_dependency "$archive_filename" tar
         ;;
       *.jar|*.zip)
@@ -48,7 +48,7 @@ main() {
     archive_filename=${archive##*/}
     archive_path=$(absolute_path "$archive")
     case $archive_filename in
-      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz)
+      *.tar|*.tar.bz2|*.tar.gz|*.tar.xz|*.txz)
         top_level_files="$(tar tf "$archive" | sed 's_/.*__' | sort | uniq)"
         top_level_file_count=$(printf '%s\n' "$top_level_files" | wc -l)
         if [ "$top_level_file_count" -eq 1 ]; then
